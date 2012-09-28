@@ -1,0 +1,24 @@
+
+CFLAGS := -m64 -O2 -std=gnu99
+LDFLAGS := -L.
+LDLIBS := -lbinheap -lrt
+
+CC := gcc
+LD := gcc
+AR := ar
+
+.PHONY: all
+
+all: heaptest
+
+clean:
+	rm -f *.o *.a heaptest
+
+libbinheap.a: binheap.c binheap.h defs.h
+	$(CC) -c $(CFLAGS) binheap.c
+	$(AR) -r libbinheap.a binheap.o
+
+heaptest: main.c libbinheap.a
+	$(CC) -c $(CFLAGS) main.c
+	$(LD) $(LDFLAGS) main.o $(LDLIBS) -o heaptest
+

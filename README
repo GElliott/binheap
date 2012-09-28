@@ -1,0 +1,43 @@
+An implementation of arbitrarily sized binary heaps without dynamic memory allocation in
+C.  The implementation is used in the LITMUS^RT project, a real-time extension to the
+Linux kernel. Thus, this implementation is easy to use in user-land and kernel-land
+projects.
+
+	Binary heaps are a simple data structure taught in introductory computer science.
+"Easy" implementations come in two flavors:
+(1) Heaps of a fixed maximum size where data is stored in a statically allocated array.
+(2) Heaps of arbitrary size, but with dynamic memory allocation.
+
+	It is tricky to get the best of both worlds while still obtaining high performance.
+This implementation aims to do just that. It supports arbitrarily large heaps without the
+need of dynamic memory allocation. This is accomplished by disassociating the data
+stored in a heap node from the node provided by the caller that inserts the node.
+
+How it works:
+	The caller of binheap_add() provides both the data (usually a pointer) and a node
+to store that pointer in. Initially, the provided node stores the provided data.
+As new nodes are added or deleted from the heap, the data may be moved to another
+node while the original node it was in may remain at the same structural location within
+the binary heap. This disassociation of data from node allows heap bubble operations
+to be fast (just a pointer swap) while node pointers (parent, child, etc.) remain
+unchanged.
+	Note that this method makes arbitrary deletions from the heap tricky, but
+not impossible--the original node and inserted data must be removed together.
+
+Other Design Goals:
+* Provide a drop-in replacement to Linked Lists in the Linux Kernel.  The binheap API
+thus mimics the Linux Linked List API. This is great because priority queues are easier
+to maintain in a binary heap than a sorted linked list. Furthermore, the Linux red-black
+trees may be overkill in situations where heap order, instead of total order, is
+sufficient.
+
+Other Notes:
+* Checkout Björn Brandenburg's binomial heap implementation if you need to quickly merge
+two heaps. Binomial heaps are more efficient at this, but are more costly to maintain.
+http://github.com/brandenburg/binomial-heaps
+
+Contact:
+Glenn Elliott
+gelliott [at] cs [dot] unc [dot] edu
+
+This code is made available under the LGPL, version 2.
