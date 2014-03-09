@@ -1,4 +1,3 @@
-
 CFLAGS := -m64 -O2 -std=gnu99
 LDFLAGS := -L.
 LDLIBS := -lbinheap -lrt
@@ -14,11 +13,10 @@ all: heaptest
 clean:
 	rm -f *.o *.a heaptest
 
-libbinheap.a: binheap.c binheap.h defs.h
-	$(CC) -c $(CFLAGS) binheap.c
-	$(AR) -r libbinheap.a binheap.o
+libbinheap.a: binheap.c binheap.h sbinheap.c sbinheap.h defs.h
+	$(CC) -c $(CFLAGS) binheap.c sbinheap.c
+	$(AR) -r libbinheap.a binheap.o sbinheap.o
 
 heaptest: main.c libbinheap.a
 	$(CC) -c $(CFLAGS) main.c
 	$(LD) $(LDFLAGS) main.o $(LDLIBS) -o heaptest
-

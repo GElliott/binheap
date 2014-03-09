@@ -1,26 +1,37 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <assert.h>
 #include <math.h>
 
 #include <stdint.h>
 
 #include <unistd.h>
-#include <sys/time.h>
+
+#include "time.h"
 
 #include "binheap.h"
+#include "sbinheap.h"
 
 struct Data
 {
 	int val;
 	struct binheap_node heap_node;
+
+	sbinheap_node_t sheap_node;
 };
 
 int less(struct binheap_node* A, struct binheap_node* B)
 {
 	struct Data* a = binheap_entry(A, struct Data, heap_node);
 	struct Data* b = binheap_entry(B, struct Data, heap_node);
+
+	return(a->val < b->val);
+}
+
+int sless(struct sbinheap_node* A, struct sbinheap_node* B)
+{
+	struct Data* a = sbinheap_entry(A, struct Data, heap_node);
+	struct Data* b = sbinheap_entry(B, struct Data, heap_node);
 
 	return(a->val < b->val);
 }
@@ -39,38 +50,38 @@ void print(struct binheap_node* n, int depth)
 	int p=-1, l=-1, r=-1;
 	struct Data* d = binheap_entry(n, struct Data, heap_node);
 
-	for(i = 0; i < depth; ++i) printf("    ");
+	for(i = 0; i < depth; ++i) printf("	");
 
 	if(n->parent)
-    {
-        if(n->parent->data)
-            p = binheap_entry(n->parent, struct Data, heap_node)->val;
-        else {
-            printf("parent has null data!\n"); fflush(0); assert(0);}
-    }
+	{
+		if(n->parent->data)
+			p = binheap_entry(n->parent, struct Data, heap_node)->val;
+		else {
+			printf("parent has null data!\n"); fflush(0); assert(0);}
+	}
 	if(n->left)
-    {
-        if(n->left->data)
-            l = binheap_entry(n->left, struct Data, heap_node)->val;
-        else {
-            printf("left child has null data!\n"); fflush(0); assert(0);}        
-        
-    }
+	{
+		if(n->left->data)
+			l = binheap_entry(n->left, struct Data, heap_node)->val;
+		else {
+			printf("left child has null data!\n"); fflush(0); assert(0);}
+
+	}
 	if(n->right)
-    {
-        if(n->right->data)
-            r = binheap_entry(n->right, struct Data, heap_node)->val;
-        else {
-            printf("right child has null data!\n"); fflush(0); assert(0);}        
-    }
+	{
+		if(n->right->data)
+			r = binheap_entry(n->right, struct Data, heap_node)->val;
+		else {
+			printf("right child has null data!\n"); fflush(0); assert(0);}
+	}
 
 	printf("+-> %d\t(%p)\t(p = %d, l = %d, r = %d)\n", d->val, n, p, l, r);
-	
-    if(n->left) { print(n->left, depth+1); }
-    if(n->right) { print(n->right, depth+1); }
+
+	if(n->left) { print(n->left, depth+1); }
+	if(n->right) { print(n->right, depth+1); }
 }
 
-inline void timediff(const struct timespec* start,
+void timediff(const struct timespec* start,
 	const struct timespec* end,
 	struct timespec* out)
 {
@@ -98,6 +109,135 @@ void usage(const char* msg)
 	exit(-1);
 }
 
+
+const int RANGE = 10000;
+
+
+void func(struct binheap_node* node, void* args)
+{
+	struct Data* d = binheap_entry(node, struct Data, heap_node);
+	printf("%d\n", d->val);
+}
+
+float test_binheap(int numTrials, int flip, int size, unsigned int seed)
+{
+	if(size <= 0)
+		return 0;
+
+	struct binheap heap;
+	struct Data nodes[size];
+	int i, t, f;
+
+	uint64_t heapData[numTrials];
+	struct timespec start, end;
+
+	srand(seed);
+
+	INIT_BINHEAP(&heap, less);
+	for(i = 0; i < size; ++i)
+	{
+		INIT_BINHEAP_NODE(&nodes[i].heap_node);
+
+		nodes[i].val = (int)fabs((float)(rand() % RANGE));
+	}
+
+	for(t = 0; t < numTrials; ++t)
+	{
+		clk_gettime(CLK_THREAD_CPUTIME, &start);
+		for(i = 0; i < size; ++i)
+		{
+			binheap_add(&nodes[i].heap_node, &heap, struct Data, heap_node);
+		}
+		for(f = 0; f < flip; ++f)
+		{
+			struct Data* d = binheap_top_entry(&heap, struct Data, heap_node);
+			binheap_delete_root(&heap, struct Data, heap_node);
+			d->val = (int)fabs((float)(rand() % RANGE));
+			binheap_add(&d->heap_node, &heap, struct Data, heap_node);
+		}
+		while(!binheap_empty(&heap))
+		{
+			binheap_delete_root(&heap, struct Data, heap_node);
+		}
+		clk_gettime(CLK_THREAD_CPUTIME, &end);
+
+		struct timespec diff;
+		timediff(&start, &end, &diff);
+		uint64_t elapsed = diff.tv_sec*1e6 + diff.tv_nsec/1e3;
+		heapData[t] = elapsed;
+	}
+
+	float sum_h = 0;
+	for(t = 0; t < numTrials; ++t)
+	{
+		sum_h += heapData[t];
+	}
+	return sum_h / numTrials;
+}
+
+
+void sfunc(sbinheap_node_t node, void* args)
+{
+	struct Data* d = sbinheap_entry(node, struct Data, sheap_node);
+	printf("%d\n", d->val);
+}
+
+float test_sbinheap(int numTrials, int flip, int size, unsigned int seed)
+{
+	if(size <= 0)
+		return 0;
+
+	DECLARE_SBINHEAP(heap, sless, size);
+	struct Data nodes[size];
+	int i, t, f;
+
+	uint64_t heapData[numTrials];
+	struct timespec start, end;
+
+	INIT_SBINHEAP(&heap);
+
+	srand(seed);
+
+	for(i = 0; i < size; ++i)
+	{
+		nodes[i].val = (int)fabs((float)(rand() % RANGE));
+	}
+
+	for(t = 0; t < numTrials; ++t)
+	{
+		clk_gettime(CLK_THREAD_CPUTIME, &start);
+		for(i = 0; i < size; ++i)
+		{
+			sbinheap_add(&nodes[i].sheap_node, &heap, struct Data, sheap_node);
+		}
+		for(f = 0; f < flip; ++f)
+		{
+			struct Data* d = sbinheap_top_entry(&heap, struct Data, sheap_node);
+			sbinheap_delete_root(&heap);
+			d->val = (int)fabs((float)(rand() % RANGE));
+			sbinheap_add(&d->sheap_node, &heap, struct Data, sheap_node);
+		}
+		while(!sbinheap_empty(&heap))
+		{
+			sbinheap_delete_root(&heap);
+		}
+		clk_gettime(CLK_THREAD_CPUTIME, &end);
+
+		struct timespec diff;
+		timediff(&start, &end, &diff);
+		uint64_t elapsed = diff.tv_sec*1e6 + diff.tv_nsec/1e3;
+		heapData[t] = elapsed;
+	}
+
+	float sum_h = 0;
+	for(t = 0; t < numTrials; ++t)
+	{
+		sum_h += heapData[t];
+	}
+	return sum_h / numTrials;
+}
+
+
 int main(int argc, char** argv)
 {
 	if(argc == 1)
@@ -111,64 +251,21 @@ int main(int argc, char** argv)
 
 	int numTrials = atoi(argv[1]);
 	int flip = atoi(argv[2]);
-	int SZ = atoi(argv[3]);
-	
-	int range = 10000;
+	int size = atoi(argv[3]);
+	unsigned int seed;
+	float avgTrialTime;
+	struct timespec t;
 
-	struct binheap heap;
-	struct Data nodes[SZ];
-	int i, t, f;
+	clk_gettime(CLK_REALTIME, &t);
+	seed = (unsigned int)t.tv_nsec;
 
-	uint64_t heapData[numTrials];
-	struct timespec start, end;
+	printf("starting binheap test...\n");
+	avgTrialTime = test_binheap(numTrials, flip, size, seed);
+	printf("binheap time (microseconds): %f\n", avgTrialTime);
 
-	clock_gettime(CLOCK_REALTIME, &start);
-	srand(start.tv_nsec);
-
-	INIT_BINHEAP(&heap, less);
-	for(i = 0; i < SZ; ++i)
-	{
-		INIT_BINHEAP_NODE(&nodes[i].heap_node);
-
-		nodes[i].val = (int)fabs((float)(rand() % range));
-	}
-
-	printf("Starting Heap Test...\n");
-	for(t = 0; t < numTrials; ++t)
-	{
-		clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);
-		for(i = 0; i < SZ; ++i)
-		{
-			binheap_add(&nodes[i].heap_node, &heap, struct Data, heap_node);
-		}
-		for(f = 0; f < flip; ++f)
-		{
-			struct Data* d = binheap_top_entry(&heap, struct Data, heap_node);
-            binheap_delete_root(&heap, struct Data, heap_node);
-			d->val = (int)fabs((float)(rand() % range));
-			binheap_add(&d->heap_node, &heap, struct Data, heap_node);
-		}
-		while(!binheap_empty(&heap))
-		{
-			binheap_delete_root(&heap, struct Data, heap_node);
-		}
-		clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end);
-	
-		struct timespec diff;
-		timediff(&start, &end, &diff);
-		uint64_t elapsed = diff.tv_sec*1e6 + diff.tv_nsec/1e3;
-		heapData[t] = elapsed;
-	}
-
-	printf("Computing Results...\n");
-
-	float sum_h = 0, sum_l = 0;
-	for(t = 0; t < numTrials; ++t)
-	{
-		sum_h += heapData[t];
-	}
-
-	printf("heap time (microseconds): %f\n", sum_h/numTrials);
+	printf("starting sbinheap test...\n");
+	avgTrialTime = test_sbinheap(numTrials, flip, size, seed);
+	printf("sbinheap time (microseconds): %f\n", avgTrialTime);
 
 	return(0);
 }
