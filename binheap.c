@@ -15,6 +15,26 @@ int binheap_is_in_this_heap(struct binheap_node *node,
 	return (node == heap->root);
 }
 
+static void __binheap_for_each(struct binheap_node *h, binheap_for_each_t fn, void* args)
+{
+	/* Apply fn to all nodes. Beware of recursion. */
+
+	/* pre-order */
+	fn(h, args);
+
+	if(h->left)
+		__binheap_for_each(h->left, fn, args);
+	if(h->right)
+		__binheap_for_each(h->right, fn, args);
+}
+
+/* Apply fn to each node. */
+void binheap_for_each(struct binheap *heap, binheap_for_each_t fn, void* args)
+{
+	if (!binheap_empty(heap))
+		__binheap_for_each(heap->root, fn, args);
+}
+
 
 /* Update the node reference pointers.  Same logic as Litmus binomial heap. */
 static void __update_ref(struct binheap_node *parent,
@@ -385,4 +405,3 @@ void __binheap_decrease(struct binheap_node *orig_node,
 
 	__binheap_bubble_up(handle, target);
 }
-

@@ -34,6 +34,8 @@ struct binheap_node {
 	struct binheap_node **ref_ptr;
 };
 
+typedef struct binheap_node binheap_node_t;
+
 /**
  * Signature of compator function.  Assumed 'less-than' (min-heap).
  * Pass in 'greater-than' for max-heap.
@@ -170,6 +172,10 @@ static inline int binheap_is_in_heap(struct binheap_node *node)
 /* Returns true if binheap node is in given heap. */
 int binheap_is_in_this_heap(struct binheap_node *node, struct binheap* heap);
 
+typedef void (*binheap_for_each_t)(struct binheap_node *node, void* args);
+/* Visit every node in heap with function fn(args). Visit order undefined. */
+void binheap_for_each(struct binheap *heap, binheap_for_each_t fn, void* args);
+
 /* Add a node to a heap */
 void __binheap_add(struct binheap_node *new_node,
 				struct binheap *handle,
@@ -200,4 +206,3 @@ void __binheap_decrease(struct binheap_node *orig_node,
 
 
 #endif
-
