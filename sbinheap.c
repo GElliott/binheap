@@ -1,8 +1,5 @@
 #include "sbinheap.h"
 
-#include <stdio.h>
-#include <assert.h>
-
 /* Swaps data between two nodes and track references */
 static inline void __sbinheap_swap(struct sbinheap_node *restrict a,
 				struct sbinheap_node *restrict b)

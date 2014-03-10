@@ -4,7 +4,6 @@
 #include "defs.h"
 
 #include <stdlib.h>
-#include <stdio.h>
 
 #ifdef __MACH__
 typedef __darwin_ssize_t ssize_t;
