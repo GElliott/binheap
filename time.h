@@ -30,7 +30,7 @@ int clk_gettime(hosttime_t clk_id, struct timespec* ts)
 	clock_serv_t cclock;
 	mach_timespec_t mts;
 #endif
-	
+
 	__sync_synchronize();
 	switch(clk_id)
 	{
@@ -56,6 +56,22 @@ int clk_gettime(hosttime_t clk_id, struct timespec* ts)
 	__sync_synchronize();
 
 	return ret;
+}
+
+void timediff(const struct timespec* start,
+              const struct timespec* end,
+              struct timespec* out)
+{
+	if ((end->tv_nsec - start->tv_nsec) < 0)
+	{
+		out->tv_sec = end->tv_sec - start->tv_sec - 1;
+		out->tv_nsec = 1000000000 + end->tv_nsec - start->tv_nsec;
+	}
+	else
+	{
+		out->tv_sec = end->tv_sec - start->tv_sec;
+		out->tv_nsec = end->tv_nsec - start->tv_nsec;
+	}
 }
 
 #endif
