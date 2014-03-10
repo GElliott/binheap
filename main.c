@@ -12,6 +12,8 @@
 #include "binheap.h"
 #include "sbinheap.h"
 
+const int RANGE = 10000;
+
 struct Data
 {
 	int val;
@@ -20,98 +22,13 @@ struct Data
 	sbinheap_node_t sheap_node;
 };
 
-int less(struct binheap_node* A, struct binheap_node* B)
+int less(const struct binheap_node* A, const struct binheap_node* B)
 {
 	struct Data* a = binheap_entry(A, struct Data, heap_node);
 	struct Data* b = binheap_entry(B, struct Data, heap_node);
 
 	return(a->val < b->val);
 }
-
-int sless(struct sbinheap_node* A, struct sbinheap_node* B)
-{
-	struct Data* a = sbinheap_entry(A, struct Data, heap_node);
-	struct Data* b = sbinheap_entry(B, struct Data, heap_node);
-
-	return(a->val < b->val);
-}
-
-void print(struct binheap_node* n, int depth)
-{
-	if(n == 0)
-	{
-		printf("+-> %p\n", (void*)0);
-		return;
-	}
-
-	if(depth > 10) assert(0);
-
-	int i;
-	int p=-1, l=-1, r=-1;
-	struct Data* d = binheap_entry(n, struct Data, heap_node);
-
-	for(i = 0; i < depth; ++i) printf("	");
-
-	if(n->parent)
-	{
-		if(n->parent->data)
-			p = binheap_entry(n->parent, struct Data, heap_node)->val;
-		else {
-			printf("parent has null data!\n"); fflush(0); assert(0);}
-	}
-	if(n->left)
-	{
-		if(n->left->data)
-			l = binheap_entry(n->left, struct Data, heap_node)->val;
-		else {
-			printf("left child has null data!\n"); fflush(0); assert(0);}
-
-	}
-	if(n->right)
-	{
-		if(n->right->data)
-			r = binheap_entry(n->right, struct Data, heap_node)->val;
-		else {
-			printf("right child has null data!\n"); fflush(0); assert(0);}
-	}
-
-	printf("+-> %d\t(%p)\t(p = %d, l = %d, r = %d)\n", d->val, n, p, l, r);
-
-	if(n->left) { print(n->left, depth+1); }
-	if(n->right) { print(n->right, depth+1); }
-}
-
-void timediff(const struct timespec* start,
-	const struct timespec* end,
-	struct timespec* out)
-{
-	if ((end->tv_nsec - start->tv_nsec) < 0)
-	{
-		out->tv_sec = end->tv_sec - start->tv_sec - 1;
-		out->tv_nsec = 1000000000 + end->tv_nsec - start->tv_nsec;
-	}
-	else
-	{
-		out->tv_sec = end->tv_sec - start->tv_sec;
-		out->tv_nsec = end->tv_nsec - start->tv_nsec;
-	}
-}
-
-void usage(const char* msg)
-{
-	if(msg)
-	{
-		fprintf(stderr, "Error: %s\n", msg);
-	}
-
-	fprintf(stderr, "usage: heaptest num_trials num_deletes heap_size\n");
-
-	exit(-1);
-}
-
-
-const int RANGE = 10000;
-
 
 void func(struct binheap_node* node, void* args)
 {
@@ -155,6 +72,13 @@ float test_binheap(int numTrials, int flip, int size, unsigned int seed)
 			d->val = (int)fabs((float)(rand() % RANGE));
 			binheap_add(&d->heap_node, &heap, struct Data, heap_node);
 		}
+		for(f = 0; f < flip; ++f)
+		{
+			struct Data* d = &nodes[rand()% size];
+			binheap_delete(&d->heap_node, &heap);
+			d->val = (int)fabs((float)(rand() % RANGE));
+			binheap_add(&d->heap_node, &heap, struct Data, heap_node);
+		}
 		while(!binheap_empty(&heap))
 		{
 			binheap_delete_root(&heap, struct Data, heap_node);
@@ -176,6 +100,14 @@ float test_binheap(int numTrials, int flip, int size, unsigned int seed)
 }
 
 
+int sless(const struct sbinheap_node* A, const struct sbinheap_node* B)
+{
+	struct Data* a = sbinheap_entry(A, struct Data, heap_node);
+	struct Data* b = sbinheap_entry(B, struct Data, heap_node);
+
+	return(a->val < b->val);
+}
+
 void sfunc(sbinheap_node_t node, void* args)
 {
 	struct Data* d = sbinheap_entry(node, struct Data, sheap_node);
@@ -188,6 +120,7 @@ float test_sbinheap(int numTrials, int flip, int size, unsigned int seed)
 		return 0;
 
 	DECLARE_SBINHEAP(heap, sless, size);
+
 	struct Data nodes[size];
 	int i, t, f;
 
@@ -217,6 +150,13 @@ float test_sbinheap(int numTrials, int flip, int size, unsigned int seed)
 			d->val = (int)fabs((float)(rand() % RANGE));
 			sbinheap_add(&d->sheap_node, &heap, struct Data, sheap_node);
 		}
+		for(f = 0; f < flip; ++f)
+		{
+			struct Data* d = &nodes[rand()% size];
+			sbinheap_delete(&d->sheap_node, &heap);
+			d->val = (int)fabs((float)(rand() % RANGE));
+			sbinheap_add(&d->sheap_node, &heap, struct Data, sheap_node);
+		}
 		while(!sbinheap_empty(&heap))
 		{
 			sbinheap_delete_root(&heap);
@@ -238,6 +178,18 @@ float test_sbinheap(int numTrials, int flip, int size, unsigned int seed)
 }
 
 
+void usage(const char* msg)
+{
+	if(msg)
+	{
+		fprintf(stderr, "Error: %s\n", msg);
+	}
+
+	fprintf(stderr, "usage: heaptest num_trials num_deletes heap_size\n");
+
+	exit(-1);
+}
+
 int main(int argc, char** argv)
 {
 	if(argc == 1)
@@ -258,14 +210,15 @@ int main(int argc, char** argv)
 
 	clk_gettime(CLK_REALTIME, &t);
 	seed = (unsigned int)t.tv_nsec;
+	printf("seed: %u\n\n", seed);
 
-	printf("starting binheap test...\n");
+	printf("starting binheap test...\n"); fflush(0);
 	avgTrialTime = test_binheap(numTrials, flip, size, seed);
-	printf("binheap time (microseconds): %f\n", avgTrialTime);
+	printf("binheap time (microseconds): %f\n\n", avgTrialTime); fflush(0);
 
-	printf("starting sbinheap test...\n");
+	printf("starting sbinheap test...\n"); fflush(0);
 	avgTrialTime = test_sbinheap(numTrials, flip, size, seed);
-	printf("sbinheap time (microseconds): %f\n", avgTrialTime);
+	printf("sbinheap time (microseconds): %f\n\n", avgTrialTime); fflush(0);
 
 	return(0);
 }
