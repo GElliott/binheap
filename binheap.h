@@ -23,6 +23,10 @@
 
 struct binheap_node {
 	void	*data;
+
+	/* facilitates node swapping */
+	struct binheap_node **ref_ptr;
+
 	struct binheap_node *parent;
 	struct binheap_node *left;
 	struct binheap_node *right;
@@ -31,17 +35,26 @@ struct binheap_node {
 	 * was originally inserted.  (*data "owns" this node)
 	 */
 	struct binheap_node *ref;
-	struct binheap_node **ref_ptr;
 };
 
 typedef struct binheap_node binheap_node_t;
+
+/* Initialized heap nodes not in a heap have parent
+ * set to BINHEAP_POISON.
+ */
+#define BINHEAP_POISON	((void*)(0xdeadbeef))
+
+#define BINHEAP_NODE_INIT() {0, 0, BINHEAP_POISON, 0, 0, 0}
+
+#define BINHEAP_NODE(name) \
+struct binheap_node name = BINHEAP_NODE_INIT()
 
 /**
  * Signature of compator function.  Assumed 'less-than' (min-heap).
  * Pass in 'greater-than' for max-heap.
  */
-typedef int (*binheap_order_t)(struct binheap_node *a,
-				struct binheap_node *b);
+typedef int (*binheap_order_t)(const struct binheap_node *a,
+				const struct binheap_node *b);
 
 
 struct binheap {
@@ -56,12 +69,6 @@ struct binheap {
 	/* comparator function pointer */
 	binheap_order_t compare;
 };
-
-
-/* Initialized heap nodes not in a heap have parent
- * set to BINHEAP_POISON.
- */
-#define BINHEAP_POISON	((void*)(0xdeadbeef))
 
 
 /**
@@ -87,7 +94,7 @@ container_of((ptr), type, member)
 /**
  * binheap_top_entry - get the struct for the node at the top of the heap.
  *  Only valid when called upon the heap handle node.
- * @ptr:    the special heap-handle node.
+ * @ptr:	the special heap-handle node.
  * @type:   the type of the struct the head is embedded in.
  * @member:	the name of the binheap_struct within the (type) struct.
  */
@@ -97,7 +104,7 @@ binheap_entry((ptr)->root, type, member)
 /**
  * binheap_delete_root - remove the root element from the heap.
  * @handle:	 handle to the heap.
- * @type:    the type of the struct the head is embedded in.
+ * @type:	the type of the struct the head is embedded in.
  * @member:	 the name of the binheap_struct within the (type) struct.
  */
 #define binheap_delete_root(handle, type, member) \
@@ -115,7 +122,7 @@ __binheap_delete((to_delete), (handle))
  * binheap_add - insert an element to the heap
  * new_node: node to add.
  * @handle:	 handle to the heap.
- * @type:    the type of the struct the head is embedded in.
+ * @type:	the type of the struct the head is embedded in.
  * @member:	 the name of the binheap_struct within the (type) struct.
  */
 #define binheap_add(new_node, handle, type, member) \
@@ -126,26 +133,17 @@ __binheap_add((new_node), (handle), container_of((new_node), type, member))
  * original data pointer).
  * @handle: handle to the heap.
  * @orig_node: node that was associated with the data pointer
- *             (whose value has changed) when said pointer was
- *             added to the heap.
+ *			 (whose value has changed) when said pointer was
+ *			 added to the heap.
  */
 #define binheap_decrease(orig_node, handle) \
 __binheap_decrease((orig_node), (handle))
 
-#define BINHEAP_NODE_INIT() { 0, BINHEAP_POISON, 0, 0 , 0, 0}
-
-#define BINHEAP_NODE(name) \
-	struct binheap_node name = BINHEAP_NODE_INIT()
-
 
 static inline void INIT_BINHEAP_NODE(struct binheap_node *n)
 {
-	n->data = 0;
-	n->parent = BINHEAP_POISON;
-	n->left = 0;
-	n->right = 0;
-	n->ref = 0;
-	n->ref_ptr = 0;
+	static const struct binheap_node init_node = BINHEAP_NODE_INIT();
+	*n = init_node;
 }
 
 static inline void INIT_BINHEAP(struct binheap *handle,
@@ -164,13 +162,14 @@ static inline int binheap_empty(struct binheap *handle)
 }
 
 /* Returns true if binheap node is in a heap. */
-static inline int binheap_is_in_heap(struct binheap_node *node)
+static inline int binheap_is_in_heap(const struct binheap_node *node)
 {
 	return (node->parent != BINHEAP_POISON);
 }
 
 /* Returns true if binheap node is in given heap. */
-int binheap_is_in_this_heap(struct binheap_node *node, struct binheap* heap);
+int binheap_is_in_this_heap(const struct binheap_node *node,
+				const struct binheap* heap);
 
 typedef void (*binheap_for_each_t)(struct binheap_node *node, void* args);
 /* Visit every node in heap with function fn(args). Visit order undefined. */
@@ -202,7 +201,5 @@ void __binheap_delete(struct binheap_node *node_to_delete,
  * Bubble up a node whose pointer has decreased in value.
  */
 void __binheap_decrease(struct binheap_node *orig_node,
-						struct binheap *handle);
-
-
+				struct binheap *handle);
 #endif

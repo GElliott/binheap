@@ -1,8 +1,8 @@
 #include "binheap.h"
 
 /* Returns true of the root ancestor of node is the root of the given heap. */
-int binheap_is_in_this_heap(struct binheap_node *node,
-	struct binheap* heap)
+int binheap_is_in_this_heap(const struct binheap_node *node,
+				const struct binheap* heap)
 {
 	if(!binheap_is_in_heap(node)) {
 		return 0;
@@ -15,30 +15,10 @@ int binheap_is_in_this_heap(struct binheap_node *node,
 	return (node == heap->root);
 }
 
-static void __binheap_for_each(struct binheap_node *h, binheap_for_each_t fn, void* args)
-{
-	/* Apply fn to all nodes. Beware of recursion. */
-
-	/* pre-order */
-	fn(h, args);
-
-	if(h->left)
-		__binheap_for_each(h->left, fn, args);
-	if(h->right)
-		__binheap_for_each(h->right, fn, args);
-}
-
-/* Apply fn to each node. */
-void binheap_for_each(struct binheap *heap, binheap_for_each_t fn, void* args)
-{
-	if (!binheap_empty(heap))
-		__binheap_for_each(heap->root, fn, args);
-}
-
 
 /* Update the node reference pointers.  Same logic as Litmus binomial heap. */
-static void __update_ref(struct binheap_node *parent,
-				struct binheap_node *child)
+static void __update_ref(struct binheap_node *restrict parent,
+				struct binheap_node *restrict child)
 {
 	*(parent->ref_ptr) = child;
 	*(child->ref_ptr) = parent;
@@ -48,11 +28,11 @@ static void __update_ref(struct binheap_node *parent,
 
 
 /* Swaps data between two nodes. */
-static void __binheap_swap(struct binheap_node *parent,
-				struct binheap_node *child)
+static void __binheap_swap(struct binheap_node *restrict parent,
+				struct binheap_node *restrict child)
 {
-	swap(parent->data, child->data);
 	__update_ref(parent, child);
+	swap(parent->data, child->data);
 }
 
 
@@ -60,11 +40,11 @@ static void __binheap_swap(struct binheap_node *parent,
  * just data.  Needed when we delete nodes from the heap.
  */
 static void __binheap_swap_safe(struct binheap *handle,
-				struct binheap_node *a,
-				struct binheap_node *b)
+				struct binheap_node *restrict a,
+				struct binheap_node *restrict b)
 {
-	swap(a->data, b->data);
 	__update_ref(a, b);
+	swap(a->data, b->data);
 
 	if((a->parent != 0) && (a->parent == b->parent)) {
 		/* special case: shared parent */
@@ -200,16 +180,39 @@ static void __binheap_update_next(struct binheap *handle)
 }
 
 
+static void __binheap_for_each(struct binheap_node *h,
+				binheap_for_each_t fn, void* args)
+{
+	/* Apply fn to all nodes. Beware of recursion. */
+
+	/* pre-order */
+	fn(h, args);
+
+	if(h->left)
+		__binheap_for_each(h->left, fn, args);
+	if(h->right)
+		__binheap_for_each(h->right, fn, args);
+}
+
+/* Apply fn to each node. */
+void binheap_for_each(struct binheap *heap, binheap_for_each_t fn, void* args)
+{
+	if (!binheap_empty(heap))
+		__binheap_for_each(heap->root, fn, args);
+}
+
 
 /* bubble node up towards root */
 static void __binheap_bubble_up(struct binheap *handle,
 				struct binheap_node *node)
 {
+	const binheap_order_t cmp = handle->compare;
+
 	/* let BINHEAP_POISON data bubble to the top */
 
 	while((node->parent != 0) &&
 		  ((node->data == BINHEAP_POISON) ||
-		   handle->compare(node, node->parent))) {
+		   cmp(node, node->parent))) {
 			  __binheap_swap(node->parent, node);
 			  node = node->parent;
 	}
@@ -219,11 +222,12 @@ static void __binheap_bubble_up(struct binheap *handle,
 /* bubble node down, swapping with min-child */
 static void __binheap_bubble_down(struct binheap *handle)
 {
+	const binheap_order_t cmp = handle->compare;
 	struct binheap_node *node = handle->root;
 
 	while(node->left != 0) {
-		if(node->right && handle->compare(node->right, node->left)) {
-			if(handle->compare(node->right, node)) {
+		if(node->right && cmp(node->right, node->left)) {
+			if(cmp(node->right, node)) {
 				__binheap_swap(node, node->right);
 				node = node->right;
 			}
@@ -232,7 +236,7 @@ static void __binheap_bubble_down(struct binheap *handle)
 			}
 		}
 		else {
-			if(handle->compare(node->left, node)) {
+			if(cmp(node->left, node)) {
 				__binheap_swap(node, node->left);
 				node = node->left;
 			}
@@ -249,8 +253,8 @@ void __binheap_add(struct binheap_node *new_node,
 				void *data)
 {
 	new_node->data = data;
-	new_node->ref = new_node;
 	new_node->ref_ptr = &(new_node->ref);
+	new_node->ref = new_node;
 
 	if(!binheap_empty(handle)) {
 		/* insert left side first */
