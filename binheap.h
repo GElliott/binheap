@@ -187,14 +187,14 @@ void __binheap_add(struct binheap_node *new_node,
  * The 'last' node in the tree is then swapped up to the root and bubbled
  * down.
  */
-void __binheap_delete_root(struct binheap *handle,
+void* __binheap_delete_root(struct binheap *handle,
 				struct binheap_node *container);
 
 /**
  * Delete an arbitrary node.  Bubble node to delete up to the root,
  * and then delete to root.
  */
-void __binheap_delete(struct binheap_node *node_to_delete,
+void* __binheap_delete(struct binheap_node *node_to_delete,
 				struct binheap *handle);
 
 /**

@@ -68,20 +68,20 @@ float test_binheap(int numTrials, int flip, int size, unsigned int seed)
 		for(f = 0; f < flip; ++f)
 		{
 			struct Data* d = binheap_top_entry(&heap, struct Data, heap_node);
-			binheap_delete_root(&heap, struct Data, heap_node);
+			(void)binheap_delete_root(&heap, struct Data, heap_node);
 			d->val = (int)fabs((float)(rand() % RANGE));
 			binheap_add(&d->heap_node, &heap, struct Data, heap_node);
 		}
 		for(f = 0; f < flip; ++f)
 		{
 			struct Data* d = &nodes[rand()% size];
-			binheap_delete(&d->heap_node, &heap);
+			(void)binheap_delete(&d->heap_node, &heap);
 			d->val = (int)fabs((float)(rand() % RANGE));
 			binheap_add(&d->heap_node, &heap, struct Data, heap_node);
 		}
 		while(!binheap_empty(&heap))
 		{
-			binheap_delete_root(&heap, struct Data, heap_node);
+			(void)binheap_delete_root(&heap, struct Data, heap_node);
 		}
 		clk_gettime(CLK_THREAD_CPUTIME, &end);
 
@@ -146,20 +146,20 @@ float test_sbinheap(int numTrials, int flip, int size, unsigned int seed)
 		for(f = 0; f < flip; ++f)
 		{
 			struct Data* d = sbinheap_top_entry(&heap, struct Data, sheap_node);
-			sbinheap_delete_root(&heap);
+			(void)sbinheap_delete_root(&heap, struct Data, sheap_node);
 			d->val = (int)fabs((float)(rand() % RANGE));
 			sbinheap_add(&d->sheap_node, &heap, struct Data, sheap_node);
 		}
 		for(f = 0; f < flip; ++f)
 		{
 			struct Data* d = &nodes[rand()% size];
-			sbinheap_delete(&d->sheap_node, &heap);
+			(void)sbinheap_delete(&d->sheap_node, &heap);
 			d->val = (int)fabs((float)(rand() % RANGE));
 			sbinheap_add(&d->sheap_node, &heap, struct Data, sheap_node);
 		}
 		while(!sbinheap_empty(&heap))
 		{
-			sbinheap_delete_root(&heap);
+			(void)sbinheap_delete_root(&heap, struct Data, sheap_node);
 		}
 		clk_gettime(CLK_THREAD_CPUTIME, &end);
 

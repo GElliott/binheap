@@ -6,6 +6,7 @@
 #include <stdlib.h>
 
 #ifdef __MACH__
+#include <stdint.h>
 typedef __darwin_ssize_t ssize_t;
 #endif
 
@@ -22,6 +23,8 @@ typedef __darwin_ssize_t ssize_t;
 /* Opaque type for sbinheap_node used by users of sbinheap. */
 typedef struct sbinheap_node* sbinheap_node_t;
 
+typedef ssize_t idx_t;
+
 #define SBINHEAP_NODE_INIT() 0
 #define SBINHEAP_NODE(name) \
 	sbinheap_node_t name = SBINHEAP_NODE_INIT()
@@ -33,7 +36,7 @@ typedef struct sbinheap_node* sbinheap_node_t;
 /* Internal node data structure */
 struct sbinheap_node {
 	/* pointer to the start of the heap buffer */
-	ssize_t idx;
+	idx_t idx;
 
 	/* facilitates node swapping. */
 	struct sbinheap_node **ref_ptr;
@@ -45,7 +48,7 @@ struct sbinheap_node {
 #define SBINHEAP_BADIDX (-1)
 #define SBINHEAP_POISON ((void*)(0xdeadbeef))
 #define __SBINHEAP_NODE_INIT \
-	{SBINHEAP_BADIDX, SBINHEAP_NODE_INIT(), SBINHEAP_POISON}
+	{.idx = SBINHEAP_BADIDX, .ref_ptr = SBINHEAP_NODE_INIT(), .data = SBINHEAP_POISON}
 
 
 /**
@@ -60,10 +63,10 @@ struct sbinheap {
 	sbinheap_order_t compare;
 
 	/* current size of the heap */
-	size_t size;
+	idx_t size;
 
 	/* maximum size of the heap */
-	size_t max_size;
+	idx_t max_size;
 
 	/* pointer to the allocated heap */
 	struct sbinheap_node* buf;
@@ -101,8 +104,11 @@ sbinheap_entry((ptr)->buf, type, member)
 /**
  * binheap_delete_root - remove the root element from the heap.
  * @heap:	 heap to the heap.
+ * @type (ignored):   the type of the struct the head is embedded in.
+ * @member (ignored): the name of the binheap_struct within the (type) struct.
+ * Ignored fields remain for API compatibility with binheap_delete_root().
  */
-#define sbinheap_delete_root(heap) \
+#define sbinheap_delete_root(heap, type, member) \
 __sbinheap_delete_root(heap)
 
 /**
@@ -151,7 +157,7 @@ static inline int sbinheap_empty(struct sbinheap *heap)
 }
 
 /* Get the maximum size of the heap */
-static inline size_t sbinheap_max_size(struct sbinheap *heap)
+static inline idx_t sbinheap_max_size(struct sbinheap *heap)
 {
 	return heap->max_size;
 }
@@ -175,15 +181,15 @@ void sbinheap_for_each(struct sbinheap *heap,
 				sbinheap_for_each_t fn, void* args);
 
 /* Insert an allocated node into a heap */
-int __sbinheap_insert(struct sbinheap_node *new_node, struct sbinheap *heap);
+void __sbinheap_insert(struct sbinheap_node *new_node, struct sbinheap *heap);
 
 /* Allocates, initializes, and adds a node to the heap */
 static inline void __sbinheap_add(struct sbinheap* heap,
 				void* data, struct sbinheap_node** ret)
 {
-	struct sbinheap_node *n = 0;
 	if (heap->size < heap->max_size) {
-		size_t idx = (heap->size)++;
+		idx_t idx = (heap->size)++;
+		struct sbinheap_node *n = 0;
 
 		n = heap->buf + idx;
 		n->idx = idx;
@@ -191,7 +197,7 @@ static inline void __sbinheap_add(struct sbinheap* heap,
 		n->ref_ptr = ret;
 		*ret = n;
 
-		(void)__sbinheap_insert(n, heap);
+		__sbinheap_insert(n, heap);
 	}
 	else {
 		*ret = 0;
@@ -205,13 +211,13 @@ static inline void __sbinheap_add(struct sbinheap* heap,
  * The 'last' node in the tree is then swapped up to the root and bubbled
  * down.
  */
-void __sbinheap_delete_root(struct sbinheap *heap);
+void* __sbinheap_delete_root(struct sbinheap *heap);
 
 /**
  * Delete an arbitrary node.  Bubble node to delete up to the root,
  * and then delete to root.
  */
-void __sbinheap_delete(struct sbinheap_node *node,
+void* __sbinheap_delete(struct sbinheap_node *node,
 				struct sbinheap *heap);
 
 /**

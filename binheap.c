@@ -302,10 +302,11 @@ void __binheap_add(struct binheap_node *new_node,
  * The 'last' node in the tree is then swapped up to the root and bubbled
  * down.
  */
-void __binheap_delete_root(struct binheap *handle,
+void* __binheap_delete_root(struct binheap *handle,
 				struct binheap_node *container)
 {
 	struct binheap_node *root = handle->root;
+	void* data = root->data;
 
 	if(root != container) {
 		/* coalesce */
@@ -376,6 +377,8 @@ void __binheap_delete_root(struct binheap *handle,
 
 	/* mark as removed */
 	container->parent = BINHEAP_POISON;
+
+	return data;
 }
 
 
@@ -383,19 +386,22 @@ void __binheap_delete_root(struct binheap *handle,
  * Delete an arbitrary node.  Bubble node to delete up to the root,
  * and then delete to root.
  */
-void __binheap_delete(struct binheap_node *node_to_delete,
+void* __binheap_delete(struct binheap_node *node_to_delete,
 				struct binheap *handle)
 {
 	struct binheap_node *target = node_to_delete->ref;
-	void *temp_data = target->data;
+	void *data = target->data;
 
-	/* temporarily set data to null to allow node to bubble up to the top. */
+	/* set data to null to allow node to bubble up to the top. */
 	target->data = BINHEAP_POISON;
 
 	__binheap_bubble_up(handle, target);
-	__binheap_delete_root(handle, node_to_delete);
+	(void)__binheap_delete_root(handle, node_to_delete);
 
-	node_to_delete->data = temp_data;  /* restore node data pointer */
+	/* backwards compatibility with old binheap behavior */
+	node_to_delete->data = data;
+
+	return data;
 }
 
 

@@ -1,4 +1,4 @@
-CFLAGS := -m64 -O3 -march=native -std=gnu99
+CFLAGS := -m64 -O2 -march=native -std=gnu99
 LDFLAGS := -L.
 LDLIBS := -lbinheap -lrt
 
